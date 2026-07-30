@@ -12,18 +12,19 @@ from codereviewer.config import settings
 from codereviewer.persistence.models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
+# Never pass the URL through ConfigParser.set_main_option — passwords with
+# percent-encoding (%40, %2F, …) are treated as interpolation syntax.
+
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -40,8 +41,10 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
+    configuration = dict(config.get_section(config.config_ini_section) or {})
+    configuration["sqlalchemy.url"] = settings.database_url
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
