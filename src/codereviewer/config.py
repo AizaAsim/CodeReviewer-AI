@@ -39,6 +39,13 @@ class Settings(BaseSettings):
             return value.replace("postgres://", "postgresql+psycopg://", 1)
         return value
 
+    @property
+    def db_connect_args(self) -> dict[str, object]:
+        """Supabase's transaction pooler (port 6543) rejects prepared statements."""
+        if "pooler.supabase.com" in self.database_url and ":6543" in self.database_url:
+            return {"prepare_threshold": None}
+        return {}
+
     @model_validator(mode="after")
     def resolve_private_key(self) -> Settings:
         # Normalize escaped newlines from env paste into real PEM body.

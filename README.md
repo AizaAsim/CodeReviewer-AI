@@ -117,6 +117,19 @@ uv run python eval/run_eval.py   # terminal 2
 1. Create a **Supabase** free Postgres (or any persistent Postgres). Copy the
    URI into `DATABASE_URL` (postgres:// is auto-normalized to
    `postgresql+psycopg://`).
+
+   Use the **connection pooler** URI, not the direct one: Supabase's
+   `db.<ref>.supabase.co` is IPv6-only and Render has no outbound IPv6, so
+   direct connections fail with `Network is unreachable`. In Supabase →
+   *Connect*, take the Session pooler string, which looks like
+
+```
+postgresql+psycopg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+```
+
+   Percent-encode any special characters in the password (`@` → `%40`,
+   `/` → `%2F`). Port `6543` (transaction mode) also works — prepared
+   statements are disabled automatically for it.
 2. Base64 the App private key (avoids Render newline mangling):
 
 ```bash
