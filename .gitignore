@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# secrets
+*.pem
+
+# nested testbed clone (separate GitHub repo)
+codereviewer-testbed/

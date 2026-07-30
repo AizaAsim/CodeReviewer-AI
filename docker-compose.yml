@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: codereviewer-postgres
+    environment:
+      POSTGRES_USER: reviewer
+      POSTGRES_PASSWORD: reviewer
+      POSTGRES_DB: reviewer
+    ports:
+      - "5434:5432"
+    volumes:
+      - codereviewer_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reviewer -d reviewer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  codereviewer_pgdata:

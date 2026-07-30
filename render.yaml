@@ -1,0 +1,34 @@
+# Exported Render Blueprint for CodeReviewer AI.
+# Create the service from the Dashboard → New → Blueprint, or:
+#   render blueprint apply
+#
+# You still need to set secrets in the Render dashboard (never commit them).
+
+services:
+  - type: web
+    name: codereviewer-ai
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH="$HOME/.local/bin:$PATH" && uv sync --frozen
+    startCommand: export PATH="$HOME/.local/bin:$PATH" && uv run alembic upgrade head && uv run uvicorn codereviewer.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY_BASE64
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_INSTALLATION_ID
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: EVAL_TOKEN
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO

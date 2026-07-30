@@ -1,1 +1,159 @@
-# CodeReviewer-AI
+# CodeReviewer AI
+
+Autonomous GitHub PR reviewer built with **Python · FastAPI · LangGraph · Groq**.
+
+It receives pull request webhooks, parses the diff, fans changed files through
+specialized security / logic / style passes, applies a confidence severity gate
+to kill noise, and posts **one** inline review (never request-changes / approve).
+
+**Live example:** [codereviewer-testbed#1](https://github.com/AizaAsim/codereviewer-testbed/pull/1)
+— inline comment on the planted SQL-injection line with a structured finding.
+
+---
+
+## Why this exists
+
+AI review bots are easy to demo and easy to make noisy. The hard part is staying
+quiet on good code. This project treats noise as a first-class failure mode:
+
+- confidence-gated severity filtering + per-line dedupe
+- specialized passes so security does not “claim” logic bugs (and vice versa)
+- measured quality on a hand-labeled buggy-PR set
+
+### Evaluation (6 planted PRs × 3 trials)
+
+| Metric | First eval (gate 0.7) | After prompt lanes + gate 0.85 |
+|---|---|---|
+| Recall | 0.20±0.00 | **0.60±0.00** |
+| Precision | 0.14±0.02 | **0.50±0.00** |
+| Clean-PR noise | 1.00±0.00 | **0.00±0.00** |
+
+Raising the confidence cut from **0.7 → 0.85** (plus lane-specific prompts)
+cleared clean-PR false positives at a measurable recall/precision tradeoff.
+Details: [`eval/README.md`](eval/README.md).
+
+---
+
+## Agent graph
+
+```mermaid
+flowchart TD
+  A[fetch_pr_context] --> B[filter_noise]
+  B --> C[classify_files]
+  C -->|no files| S[skip]
+  C -->|Send fan-out| D[security_pass]
+  C --> E[logic_pass]
+  C --> F[style_pass]
+  D --> G[aggregate_findings]
+  E --> G
+  F --> G
+  G --> H[severity_gate]
+  H --> I[decide]
+  I --> J[post_review]
+  S --> K[END]
+  J --> K
+```
+
+Interesting decisions:
+
+- **Map-reduce fan-out** with `Annotated[..., operator.add]` so parallel passes
+  do not clobber each other’s findings
+- **Severity gate** — drop confidence &lt; 0.85, drop docstring-style noise,
+  keep nits only when total findings &lt; 3, prefer security &gt; logic &gt; style on
+  the same line
+- **Token budgeting** before LLM passes under free-tier Groq limits
+- **Idempotent runs** keyed on `(repo, pr, headSha)`
+- **Fast-200 webhook** + background execution (survives Render free cold starts;
+  GitHub retries + idempotency absorb the 10s timeout)
+- **Per-comment 422 recovery** when GitHub rejects a bad line number
+
+---
+
+## Stack
+
+Python 3.12 · uv · FastAPI · LangGraph · langchain-groq (`llama-3.3-70b-versatile`)
+· githubkit · unidiff · PostgreSQL · Alembic · Docker · Render (free)
+
+---
+
+## Local setup
+
+1. Copy `.env.example` → `.env` and fill GitHub App + Groq values.
+2. Put the App private key at `./github-app.private-key.pem` (gitignored).
+3. Start Postgres + migrate + API:
+
+```bash
+docker compose up -d
+make migrate
+make dev
+```
+
+4. Tunnel webhooks (while iterating locally):
+
+```bash
+npx smee -u https://smee.io/YOUR_CHANNEL -t http://localhost:8000/webhooks/github
+```
+
+5. Manual GitHub client check:
+
+```bash
+TEST_PR_OWNER=AizaAsim TEST_PR_REPO=codereviewer-testbed TEST_PR_NUMBER=1 \
+  uv run pytest tests/test_github_client_manual.py -m manual -s
+```
+
+### Eval harness
+
+```bash
+# .env must include EVAL_TOKEN=...
+make dev   # terminal 1
+export EVAL_TOKEN=... EVAL_BASE_URL=http://127.0.0.1:8000
+uv run python eval/run_eval.py   # terminal 2
+```
+
+---
+
+## Deploy on Render (Module 9)
+
+1. Create a **Supabase** free Postgres (or any persistent Postgres). Copy the
+   URI into `DATABASE_URL` (postgres:// is auto-normalized to
+   `postgresql+psycopg://`).
+2. Base64 the App private key (avoids Render newline mangling):
+
+```bash
+base64 -i github-app.private-key.pem | tr -d '\n' | pbcopy
+```
+
+3. New **Web Service** from this repo (or apply `render.yaml`):
+   - Build: `curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH="$HOME/.local/bin:$PATH" && uv sync --frozen`
+   - Start: `export PATH="$HOME/.local/bin:$PATH" && uv run alembic upgrade head && uv run uvicorn codereviewer.main:app --host 0.0.0.0 --port $PORT`
+4. Set env vars: `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY_BASE64`,
+   `GITHUB_WEBHOOK_SECRET`, `GITHUB_INSTALLATION_ID`, `GROQ_API_KEY`,
+   `DATABASE_URL`, optional `EVAL_TOKEN`.
+5. Point the GitHub App webhook URL to
+   `https://YOUR-SERVICE.onrender.com/webhooks/github` (replace smee).
+6. Hit `/health`. Redeliver a testbed PR webhook.
+
+**Free-tier note:** Render sleeps after ~15 minutes idle. The first webhook
+after sleep may exceed GitHub’s 10s ack window — the design already survives
+that via fast-200 + GitHub retries + idempotent `(repo, pr, headSha)` runs.
+
+---
+
+## Project layout
+
+```
+src/codereviewer/
+  webhooks/       HMAC + background enqueue
+  github_client/  App auth, PR fetch, review post
+  diff_engine/    pure parse / noise / budget
+  agent/          LangGraph state, prompts, nodes
+  persistence/    ReviewRun + Finding
+  evalapi/        token-guarded /eval/review
+eval/             labeled dataset + harness
+```
+
+---
+
+## License
+
+MIT (or your choice).

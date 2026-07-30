@@ -1,0 +1,8 @@
+- Python 3.12, uv-managed. FastAPI app in src/codereviewer; layout is fixed — never create new top-level packages
+- All config via the Settings singleton in config.py; never read os.environ elsewhere; never hardcode secrets
+- All LLM prompt strings live in agent/prompts.py only
+- All LLM calls use structured output via pydantic models — never hand-parse JSON from raw text
+- Type hints everywhere; pydantic models for all external data shapes
+- Pure logic (diff_engine, severity gate) stays pure: no I/O, no LLM calls, fully unit-tested
+- No new dependencies without listing them explicitly at the top of your response
+- Do not modify modules other than the one named in my prompt

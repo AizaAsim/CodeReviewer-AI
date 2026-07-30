@@ -1,0 +1,6 @@
+{"repo":"AizaAsim/codereviewer-testbed","pr_number":1,"planted_issues":[{"path":"app/users.py","line_range":[6,6],"category":"security","note":"f-string SQL injection in get_user_by_name"}]}
+{"repo":"AizaAsim/codereviewer-testbed","pr_number":2,"planted_issues":[{"path":"app/payments.py","line_range":[8,8],"category":"logic","note":"bare except: pass in charge_card"}]}
+{"repo":"AizaAsim/codereviewer-testbed","pr_number":3,"planted_issues":[{"path":"app/paging.py","line_range":[7,7],"category":"logic","note":"off-by-one: range uses len(items)+1"}]}
+{"repo":"AizaAsim/codereviewer-testbed","pr_number":4,"planted_issues":[{"path":"app/config.py","line_range":[4,4],"category":"security","note":"hardcoded API_KEY constant"}]}
+{"repo":"AizaAsim/codereviewer-testbed","pr_number":5,"planted_issues":[{"path":"app/formatters.py","line_range":[3,7],"category":"style","note":"unused json import + PascalCase FormatUserName"}]}
+{"repo":"AizaAsim/codereviewer-testbed","pr_number":6,"planted_issues":[]}
