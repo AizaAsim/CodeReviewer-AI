@@ -8,7 +8,7 @@ from codereviewer.github_client import GithubClient
 
 async def fetch_pr_context(state: ReviewState) -> dict[str, Any]:
     owner, repo_name = state["repo"].split("/", 1)
-    client = GithubClient()
+    client = GithubClient(installation_id=state.get("installation_id"))
     pr = await client.get_pr(owner, repo_name, state["pr_number"])
     raw_files = await client.get_pr_files(owner, repo_name, state["pr_number"])
 

@@ -16,7 +16,9 @@ from codereviewer.persistence.models import Finding as FindingRecord
 logger = logging.getLogger(__name__)
 
 
-async def run_review(run_id: uuid.UUID) -> None:
+async def run_review(
+    run_id: uuid.UUID, installation_id: int | None = None
+) -> None:
     """Run the review graph, persist findings, and record posted status."""
     logger.info("run_review started run_id=%s", run_id)
     started = time.perf_counter()
@@ -41,6 +43,7 @@ async def run_review(run_id: uuid.UUID) -> None:
                     "run_id": run_id,
                     "repo": run.repo,
                     "pr_number": run.pr_number,
+                    "installation_id": installation_id,
                     "pr": None,
                     "raw_files": [],
                     "files": [],

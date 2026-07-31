@@ -17,6 +17,13 @@ _NOISE_PHRASES = (
     "missing comment",
     "type hint",
     "more readable",
+    "empty line",
+    "blank line",
+    "trailing whitespace",
+    "which is consistent",
+    "is consistent with",
+    "follows convention",
+    "this is fine",
 )
 
 
@@ -26,6 +33,9 @@ def _rank(finding: Finding) -> tuple[int, int]:
 
 def _is_low_value_noise(finding: Finding) -> bool:
     message = finding.message.lower()
+    # Real style issues use "inconsistent"; don't drop those.
+    if "inconsistent" in message:
+        return False
     return any(phrase in message for phrase in _NOISE_PHRASES)
 
 

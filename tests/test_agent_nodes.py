@@ -16,6 +16,7 @@ def _base_state() -> dict:
         "run_id": uuid.uuid4(),
         "repo": "AizaAsim/codereviewer-testbed",
         "pr_number": 1,
+        "installation_id": None,
         "pr": None,
         "raw_files": [],
         "files": [],
@@ -162,5 +163,62 @@ def test_route_review_passes_fans_out_expected_passes() -> None:
         "security_pass",
         "logic_pass",
         "style_pass",
-        "style_pass",
     ]
+
+
+def test_route_review_passes_scans_config_for_secrets() -> None:
+    state = _base_state()
+    state["files"] = [
+        DiffFile(path="app/config.py", language="python", status="added", hunks=[]),
+    ]
+    state["classifications"] = {
+        "app/config.py": FileClass(kind="config", risk="medium", language="python"),
+    }
+    routed = route_review_passes(state)
+    assert isinstance(routed, list)
+    assert [item.node for item in routed] == ["security_pass", "style_pass"]
+
+
+def test_route_review_passes_skips_logic_on_low_risk_helpers() -> None:
+    state = _base_state()
+    state["files"] = [
+        DiffFile(path="app/formatters.py", language="python", status="added", hunks=[]),
+    ]
+    state["classifications"] = {
+        "app/formatters.py": FileClass(kind="logic", risk="low", language="python"),
+    }
+    routed = route_review_passes(state)
+    assert isinstance(routed, list)
+    assert [item.node for item in routed] == ["security_pass", "style_pass"]
+
+
+def test_severity_gate_drops_blank_line_noise() -> None:
+    state = _base_state()
+    state["findings"] = [
+        Finding(
+            path="README.md",
+            line=20,
+            side="RIGHT",
+            severity="nit",
+            category="style",
+            message="Empty line added with no apparent purpose",
+            confidence=0.95,
+        )
+    ]
+    assert severity_gate(state)["filtered"] == []
+
+
+def test_severity_gate_drops_praise_style_noise() -> None:
+    state = _base_state()
+    state["findings"] = [
+        Finding(
+            path="app/users.py",
+            line=4,
+            side="RIGHT",
+            severity="nit",
+            category="style",
+            message="Function name is in snake_case, which is consistent with Python style",
+            confidence=0.95,
+        )
+    ]
+    assert severity_gate(state)["filtered"] == []

@@ -97,7 +97,9 @@ async def test_post_review_node_approve_note(monkeypatch: pytest.MonkeyPatch) ->
     mock_client.post_review = AsyncMock(
         return_value=SimpleNamespace(posted=[], rejected=[])
     )
-    monkeypatch.setattr(post_review_mod, "GithubClient", lambda: mock_client)
+    monkeypatch.setattr(
+        post_review_mod, "GithubClient", lambda **_kwargs: mock_client
+    )
 
     state = {
         "run_id": None,

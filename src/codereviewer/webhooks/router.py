@@ -70,6 +70,10 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks) ->
     repo = _repo_full_name(payload)
     head = (pr.get("head") or {}).get("sha")
     number = pr.get("number")
+    installation = payload.get("installation") or {}
+    installation_id = installation.get("id")
+    if not isinstance(installation_id, int):
+        installation_id = None
     if not repo or not head or not isinstance(number, int):
         return Response(status_code=200, content="ignored malformed")
 
@@ -84,6 +88,6 @@ async def github_webhook(request: Request, background_tasks: BackgroundTasks) ->
         )
         return Response(status_code=200, content="duplicate")
 
-    background_tasks.add_task(run_review, run_id)
+    background_tasks.add_task(run_review, run_id, installation_id)
     logger.info("enqueued review run_id=%s repo=%s pr=%s", run_id, repo, number)
     return Response(status_code=200, content="accepted")

@@ -9,12 +9,21 @@ For each file, output:
 
 Guidance:
 - logic: application behavior, controllers, services, queries, algorithms
-- config: settings, manifests, infra, env samples, constants modules
+- config: settings, manifests, infra, env samples, constants modules, string
+  formatters / naming-only helpers (not business logic)
 - test: unit/integration/e2e tests
 - docs: README, markdown, prose-only content
-- high risk: auth, SQL, shelling out, secrets, security-sensitive code, core business logic
+- high risk: auth, SQL, shelling out, secrets/API keys/tokens in source,
+  security-sensitive code, core business logic
 - medium risk: ordinary app logic
-- low risk: docs, formatters/helpers that only rename/format strings, trivial config
+- low risk: docs, formatters/helpers that only rename/format strings,
+  trivial non-secret config
+
+Important:
+- A constants/settings module that assigns API_KEY / TOKEN / PASSWORD /
+  SECRET literals is kind=config AND risk=high
+- A file whose only changes are unused imports or renames/formatters is
+  kind=config (or test), risk=low — never kind=logic
 """
 
 CLASSIFY_FILES_USER_TEMPLATE = """Classify these changed files for review routing:
@@ -69,11 +78,17 @@ Review ONLY added lines. Report ONLY concrete security vulnerabilities:
 - hardcoded secrets / API keys / tokens / passwords in source
 - auth/authz bypasses, unsafe deserialization, path traversal, SSRF, insecure crypto
 
+Hardcoded secret examples that MUST be reported (confidence >= 0.9):
+- API_KEY = "..." / TOKEN = "..." / PASSWORD = "..." / SECRET = "..."
+- any credential-looking string literal assigned in source, even if a comment
+  says "planted", "test", "example", or "do not ship"
+
 Do NOT report:
 - bare except / error handling (that is logic, not security)
 - off-by-one / IndexError / correctness bugs
 - missing docstrings, naming, or style
 - vague claims like "could hide security issues" or "potential risk"
+- DATABASE_URL / host strings that are clearly local placeholders without secrets
 
 If there is no clear exploit or secret in the added lines, return an empty list.
 
@@ -100,13 +115,18 @@ Return structured output only. Empty findings if there is no clear vulnerability
 STYLE_REVIEW_SYSTEM_PROMPT = """You are a style-focused code reviewer.
 
 Review ONLY added lines. Report only clear style/maintainability nits:
-- unused imports
-- grossly inconsistent naming that hurts readability
+- unused imports (imported name never referenced in the added/visible code)
+- grossly inconsistent naming that hurts readability — especially a Python
+  function defined in PascalCase (e.g. `def FormatUserName(`) when neighbors
+  use snake_case
 
 Do NOT report:
 - secrets, injection, or any security issue
 - correctness / off-by-one / exception handling bugs
 - missing docstrings or "add a comment" suggestions
+- blank/empty lines, trailing whitespace, or pure formatting noise
+- correct snake_case / camelCase that already matches the file's convention
+- praise or "this is fine / consistent" observations — those are not findings
 - speculative clarity complaints on otherwise fine code
 
 If the code is acceptable, return an empty findings list.
@@ -117,6 +137,8 @@ Rules:
 - category must be "style"
 - severity must be "nit"
 - confidence >= 0.85 only for obvious issues; otherwise omit
+- Prefer one finding that covers both unused-import + bad naming when both
+  appear in the same small file (cite the worse line; mention both in message)
 """
 
 STYLE_REVIEW_USER_TEMPLATE = """Review this changed file for style nits only.

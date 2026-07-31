@@ -63,6 +63,7 @@ class ReviewState(TypedDict):
     run_id: uuid.UUID
     repo: str
     pr_number: int
+    installation_id: int | None
     pr: PRMetadata | None
     raw_files: list[RawFile]
     files: list[DiffFile]

@@ -22,14 +22,17 @@ quiet on good code. This project treats noise as a first-class failure mode:
 
 ### Evaluation (6 planted PRs × 3 trials)
 
-| Metric | First eval (gate 0.7) | After prompt lanes + gate 0.85 |
-|---|---|---|
-| Recall | 0.20±0.00 | **0.60±0.00** |
-| Precision | 0.14±0.02 | **0.50±0.00** |
-| Clean-PR noise | 1.00±0.00 | **0.00±0.00** |
+| Metric | First eval (gate 0.7) | After lanes + gate 0.85 | After routing/prompt tune |
+|---|---|---|---|
+| Recall | 0.20±0.00 | 0.60±0.00 | **~1.00** (1-trial check) |
+| Precision | 0.14±0.02 | 0.50±0.00 | **~0.83–1.00** |
+| Clean-PR noise | 1.00±0.00 | **0.00±0.00** | **0.00** |
 
-Raising the confidence cut from **0.7 → 0.85** (plus lane-specific prompts)
-cleared clean-PR false positives at a measurable recall/precision tradeoff.
+Raising the confidence cut from **0.7 → 0.85** cleared clean-PR noise.
+A later pass fixed weak secret/style recall: config files always get a security
+scan, low-risk helpers skip the logic pass, and style prompts explicitly cover
+unused imports + PascalCase. Re-run `eval/run_eval.py` (3 trials) to refresh
+the ±spread column before citing numbers externally.
 Details: [`eval/README.md`](eval/README.md).
 
 ---
@@ -58,14 +61,31 @@ Interesting decisions:
 
 - **Map-reduce fan-out** with `Annotated[..., operator.add]` so parallel passes
   do not clobber each other’s findings
-- **Severity gate** — drop confidence &lt; 0.85, drop docstring-style noise,
+- **Severity gate** — drop confidence &lt; 0.85, drop docstring/blank-line noise,
   keep nits only when total findings &lt; 3, prefer security &gt; logic &gt; style on
   the same line
+- **Routing** — config modules always get a security pass (hardcoded secrets);
+  low-risk helpers skip the logic pass so invented correctness findings do not
+  drown style nits
 - **Token budgeting** before LLM passes under free-tier Groq limits
 - **Idempotent runs** keyed on `(repo, pr, headSha)`
 - **Fast-200 webhook** + background execution (survives Render free cold starts;
   GitHub retries + idempotency absorb the 10s timeout)
 - **Per-comment 422 recovery** when GitHub rejects a bad line number
+- **Multi-install** — webhook `installation.id` is threaded into GitHub auth so
+  one App can review every repo it is installed on
+
+---
+
+## Install on your repos (Module 7)
+
+1. Open the GitHub App’s public page → **Install** / **Configure**.
+2. Add this repo, the testbed, and any other project you want reviewed
+   (e.g. DeployMate).
+3. Confirm the webhook URL is the Render service
+   (`…/webhooks/github`). `GITHUB_INSTALLATION_ID` remains a fallback for
+   eval/local; live webhooks prefer the payload’s `installation.id`.
+4. Open a small PR and screenshot the best real review for the README.
 
 ---
 

@@ -55,7 +55,7 @@ async def post_review(state: ReviewState) -> dict[str, Any]:
         return {"posted": []}
 
     owner, repo_name = state["repo"].split("/", 1)
-    client = GithubClient()
+    client = GithubClient(installation_id=state.get("installation_id"))
     body = build_summary_body(state)
 
     comments: list[ReviewComment] = []

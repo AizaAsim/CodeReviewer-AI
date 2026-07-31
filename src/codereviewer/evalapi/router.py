@@ -67,6 +67,7 @@ async def eval_review(
             "run_id": uuid.uuid4(),
             "repo": payload.repo,
             "pr_number": payload.pr_number,
+            "installation_id": None,
             "pr": None,
             "raw_files": [],
             "files": [],

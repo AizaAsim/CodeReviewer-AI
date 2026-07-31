@@ -35,6 +35,7 @@ def route_review_passes(state: ReviewState):
             "run_id": state["run_id"],
             "repo": state["repo"],
             "pr_number": state["pr_number"],
+            "installation_id": state.get("installation_id"),
             "pr": state["pr"],
             "raw_files": [],
             "files": state["files"],
@@ -47,11 +48,18 @@ def route_review_passes(state: ReviewState):
             "budget": state["budget"],
             "token_events": [],
         }
-        if file_class.risk == "high" or file_class.kind == "logic":
+        # Secrets often live in config modules — always security-scan those,
+        # plus any high-risk or application-logic file.
+        if (
+            file_class.risk == "high"
+            or file_class.kind in ("logic", "config")
+        ):
             sends.append(Send("security_pass", branch_state))
-        if file_class.kind == "logic":
+        # Skip logic pass on low-risk helpers/formatters — they draw invented
+        # correctness findings and drown out real style nits.
+        if file_class.kind == "logic" and file_class.risk != "low":
             sends.append(Send("logic_pass", branch_state))
-        if allow_style:
+        if allow_style and file_class.kind != "docs":
             sends.append(Send("style_pass", branch_state))
 
     return sends or "aggregate_findings"
